@@ -5,20 +5,47 @@ require 'eventmachine'
 require 'pry'
 require 'colorize'
 
-#binding.pry
 
 websocket = Coinbase::Exchange::Websocket.new(product_id: 'ETH-USD',
                                               keepalive: true)
 websocket.match do |resp|
- # p resp
-  color = if resp.side == 'sell'
-            :red
-          else
-            :green
-          end
+  puts "match #{resp}"
+  #p resp
+  
+# color = if resp.side == 'sell'
+#            :red
+#          else
+#            :green
+#          end
 
-  str = "#{'%.2f' % resp.price} -- #{'%.6f' % resp.size}"
-  puts str.send(color)
+ # str = "#{'%.2f' % resp.price} -- #{'%.6f' % resp.size}"
+  #puts str.send(color)
+#  puts resp
+end
+
+websocket.snapshot do |resp|
+  puts "Destroying #{Order.count} orders"
+  Order.delete_all
+
+  bids = resp.bids.map do |tuple|
+    Order.new( side: 'bid', price: tuple.first, size: tuple.last )
+  end
+
+  Order.import bids
+
+  asks =  resp.asks.map do |tuple|
+    Order.new(side: 'ask', price: tuple.first, size: tuple.last)
+  end
+  
+  Order.import asks
+
+  puts "Created #{Order.count} orders"
+end
+
+websocket.update do |resp|
+  binding.pry
+
+  #Order.find_by_price resp.
 end
 
   #p "Spot Rate: £ %.2f" % resp.price
